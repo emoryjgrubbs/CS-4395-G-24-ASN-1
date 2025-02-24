@@ -5,12 +5,16 @@ from collections import deque
 # k = int > 0, corput = file path to corpus
 # return: [[n=1 probabilities list], [n=2], ..., [n=k]]
 def compute_probabilities(k, corpus, smoothing=False):
-    return count_n_grams(k, corpus)
+    corpus = preprocess(corpus)
     n_gram_counts = count_n_grams(k, corpus)
     if smoothing:
         n_gram_counts = smooth(n_gram_counts)
-    probabilities = convert_counts_to_probabilities(n_gram_counts)
+    probabilities = convert_to_probability(k, n_gram_counts)
     return probabilities
+
+
+def preprocess(corpus):
+    return corpus
 
 
 def count_n_grams(k, corpus):
@@ -79,9 +83,25 @@ def smooth(n_gram_counts):
     return n_gram_counts
 
 
-def convert_counts_to_probabilities(n_gram_counts):
-    return n_gram_counts
+def convert_to_probability(k, n_gram_counts):
+    probabilities = n_gram_counts
+    rec_conver_to_prob(k, 0, probabilities)
+    return probabilities
 
 
-probabilities = compute_probabilities(3, 'train.txt')
+def rec_conver_to_prob(k, depth, current_dict):
+    if depth >= k:
+        return
+    # get total number for level
+    total = 0
+    for (count, _) in current_dict.values():
+        total += count
+    # divide the counts by the total for that dictionary
+    for token, (count, token_dict) in current_dict.items():
+        current_dict.update({token: ((count/total), token_dict)})
+        rec_conver_to_prob(k, depth+1, token_dict)
+    return
+
+
+probabilities = compute_probabilities(3, 'sentence.txt')
 print(probabilities)
