@@ -4,14 +4,12 @@ from collections import deque
 # compute n-gram probabilities
 # k = int > 0, corput = file path to corpus
 # return: [[n=1 probabilities list], [n=2], ..., [n=k]]
-def compute_probabilities(max_k_gram, corpus, smoothing='Laplace', smoothing_k=1):
+def compute_probabilities(k, corpus, smoothing='Laplace'):
     corpus = preprocess(corpus)
-    n_gram_counts = count_n_grams(max_k_gram, corpus)
+    n_gram_counts = count_n_grams(k, corpus)
     if smoothing.lower() == 'laplace':
-        n_gram_counts = laplace_smooth(max_k_gram, n_gram_counts)
-    if smoothing.lower() == 'add-k':
-        n_gram_counts = add_k_smoothing(max_k_gram, n_gram_counts, smoothing_k)
-    probabilities = convert_to_probability(max_k_gram, n_gram_counts)
+        n_gram_counts = laplace_smooth(n_gram_counts)
+    probabilities = convert_to_probability(k, n_gram_counts)
     return probabilities
 
 
@@ -110,22 +108,8 @@ def rec_add_unencountered(k, depth, current_dict, tokens):
     return
 
 
-def laplace_smooth(max_k_gram, n_gram_counts):
-    rec_add_k(max_k_gram, 0, n_gram_counts, 1)
+def laplace_smooth(n_gram_counts):
     return n_gram_counts
-
-
-def add_k_smoothing(max_k_gram, n_gram_counts, k_smoothing):
-    rec_add_k(max_k_gram, 0, n_gram_counts, k_smoothing)
-    return n_gram_counts
-
-
-def rec_add_k(max_k_gram, depth, current_dict, k_smoothing):
-    if depth >= max_k_gram:
-        return
-    for token, (count, token_dict) in current_dict.items():
-        current_dict.update({token: ((count+k_smoothing), token_dict)})
-        rec_add_k(max_k_gram, depth+1, token_dict, k_smoothing)
 
 
 def convert_to_probability(k, n_gram_counts):
@@ -146,6 +130,7 @@ def rec_conver_to_prob(k, depth, current_dict):
         for token, (count, token_dict) in current_dict.items():
             current_dict.update({token: ((count/total), token_dict)})
             rec_conver_to_prob(k, depth+1, token_dict)
+    return
 
 
 probabilities = compute_probabilities(2, 'sentence.txt')
