@@ -45,6 +45,7 @@ def count_n_grams(k, corpus):
                 current_token += buffer[buffer_index]
         file_index += 512
     corpus.close()
+    add_unencountered(k, n_gram_counts)
     return n_gram_counts
 
 
@@ -79,6 +80,32 @@ def add_to_count(k, history, current_token, n_gram_counts):
                           (current_count+1, current_dict)})
 
 
+def add_unencountered(k, n_gram_counts):
+    tokens = []
+    # get all toplevel tokens (unigrams)
+    for token in n_gram_counts:
+        tokens.append(token)
+    for (_, token_dict) in n_gram_counts.values():
+        rec_add_unencountered(k, 1, token_dict, tokens)
+    return
+
+
+def rec_add_unencountered(k, depth, current_dict, tokens):
+    if depth >= k:
+        return
+    for token in tokens:
+        value_tupel = current_dict.get(token)
+        if value_tupel:
+            # recurse on its dictionary
+            _, token_dict = value_tupel
+        else:
+            # create it and recurse
+            current_dict.update({token: (0, dict())})
+            _, token_dict = current_dict.get(token)
+        rec_add_unencountered(k, depth+1, token_dict, tokens)
+    return
+
+
 def smooth(n_gram_counts):
     return n_gram_counts
 
@@ -97,11 +124,12 @@ def rec_conver_to_prob(k, depth, current_dict):
     for (count, _) in current_dict.values():
         total += count
     # divide the counts by the total for that dictionary
-    for token, (count, token_dict) in current_dict.items():
-        current_dict.update({token: ((count/total), token_dict)})
-        rec_conver_to_prob(k, depth+1, token_dict)
+    if total > 0:
+        for token, (count, token_dict) in current_dict.items():
+            current_dict.update({token: ((count/total), token_dict)})
+            rec_conver_to_prob(k, depth+1, token_dict)
     return
 
 
-probabilities = compute_probabilities(3, 'sentence.txt')
+probabilities = compute_probabilities(2, 'sentence.txt')
 print(probabilities)
