@@ -4,14 +4,14 @@ from collections import deque
 # compute n-gram probabilities
 # k = int > 0, corput = file path to corpus
 # return: [[n=1 probabilities list], [n=2], ..., [n=k]]
-def compute_probabilities(max_k_gram, corpus, smoothing='Laplace', smoothing_k=1):
+def compute_probabilities(max_k_gram, corpus, smoothing='add-k', smoothing_k=1, lambda_array=None):
     corpus = preprocess(corpus)
     n_gram_counts = count_n_grams(max_k_gram, corpus)
-    if smoothing.lower() == 'laplace':
-        n_gram_counts = laplace_smooth(max_k_gram, n_gram_counts)
-    if smoothing.lower() == 'add-k':
+    if smoothing.lower() == 'add-k' or smoothing.lower() == 'both':
         n_gram_counts = add_k_smoothing(max_k_gram, n_gram_counts, smoothing_k)
     probabilities = convert_to_probability(max_k_gram, n_gram_counts)
+    if smoothing.lower() == 'linear-interpolation' or smoothing.lower() == 'both':
+        probabilities = linear_interpolation_smoothing(max_k_gram, probabilities, lambda_array)
     return probabilities
 
 
@@ -110,11 +110,6 @@ def rec_add_unencountered(k, depth, current_dict, tokens):
     return
 
 
-def laplace_smooth(max_k_gram, n_gram_counts):
-    rec_add_k(max_k_gram, 0, n_gram_counts, 1)
-    return n_gram_counts
-
-
 def add_k_smoothing(max_k_gram, n_gram_counts, k_smoothing):
     rec_add_k(max_k_gram, 0, n_gram_counts, k_smoothing)
     return n_gram_counts
@@ -148,5 +143,28 @@ def rec_conver_to_prob(k, depth, current_dict):
             rec_conver_to_prob(k, depth+1, token_dict)
 
 
-probabilities = compute_probabilities(2, 'sentence.txt')
+def linear_interpolation_smoothing(max_k_gram, probabilities, lambda_array):
+    if len(lambda_array) < max_k_gram:
+        return probabilities
+    rec_linear_interpolation(max_k_gram, 0, probabilities, lambda_array, [])
+    return probabilities
+
+
+def rec_linear_interpolation(max_k_gram, depth, current_dict, lambda_array, probability_history):
+    if depth >= max_k_gram:
+        return
+    for token, (probability, token_dict) in current_dict.items():
+        # prevent probability_history refference from being changed
+        new_history = probability_history + [probability]
+        new_probability = 0
+        lambda_sum = 0
+        for i in range(depth+1):
+            lambda_sum += lambda_array[i]
+            new_probability += lambda_array[i] * new_history[i]
+        new_probability /= lambda_sum
+        current_dict.update({token: ((new_probability), token_dict)})
+        rec_linear_interpolation(max_k_gram, depth+1, token_dict, lambda_array, new_history)
+
+
+probabilities = compute_probabilities(2, 'sentence.txt', smoothing='linear-interpolation', lambda_array=[0.2,0.8])
 print(probabilities)
