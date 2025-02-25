@@ -87,8 +87,6 @@ def add_unencountered(k, n_gram_counts):
     # get all toplevel tokens (unigrams)
     for token in n_gram_counts:
         tokens.append(token)
-    tokens.append('< UNK >')
-    n_gram_counts.update({'< UNK >': (0, dict())})
     for (_, token_dict) in n_gram_counts.values():
         rec_add_unencountered(k, 1, token_dict, tokens)
     return
