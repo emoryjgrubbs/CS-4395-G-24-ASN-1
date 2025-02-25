@@ -160,8 +160,9 @@ def rec_linear_interpolation(max_k_gram, depth, current_dict, lambda_array, prob
         lambda_sum = 0
         for i in range(depth+1):
             lambda_sum += lambda_array[i]
-            new_probability += lambda_array[i] * new_history[i]
-        new_probability /= lambda_sum
+            # rounding to prevent float errors
+            new_probability += round(lambda_array[i] * new_history[i], 15)
+        new_probability = round(new_probability / lambda_sum, 15)
         current_dict.update({token: ((new_probability), token_dict)})
         rec_linear_interpolation(max_k_gram, depth+1, token_dict, lambda_array, new_history)
 
