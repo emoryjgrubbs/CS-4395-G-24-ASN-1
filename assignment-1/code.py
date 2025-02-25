@@ -1,4 +1,7 @@
+# NOTE remove timer
+from time import perf_counter
 from collections import deque
+from os import path, remove
 
 
 # compute n-gram probabilities
@@ -12,11 +15,86 @@ def compute_probabilities(max_k_gram, corpus, smoothing='add-k', smoothing_k=1, 
     probabilities = convert_to_probability(max_k_gram, n_gram_counts)
     if smoothing.lower() == 'linear-interpolation' or smoothing.lower() == 'both':
         probabilities = linear_interpolation_smoothing(max_k_gram, probabilities, lambda_array)
+    if path.exists('alskdjf_temp_01928374.txt'):
+        remove('alskdjf_temp_01928374.txt')
     return probabilities
 
 
 def preprocess(corpus):
-    return corpus
+    get_eof = open(corpus, "a")
+    eof = get_eof.tell()
+    get_eof.close()
+    corpus = open(corpus, 'r')
+
+    vocabulary = dict()
+    build_vocabulary(corpus, vocabulary, eof)
+
+    # set translation of words in vocabulary
+    for word, count in vocabulary.items():
+        if count > 2:
+            vocabulary.update({word: word})
+        else:
+            vocabulary.update({word: '<UNK>'})
+
+    # create a new temporary version of the corpus
+    #   with the words translated
+    corpus.seek(0)
+
+    return translate_corpus(corpus, vocabulary, eof)
+
+
+def build_vocabulary(corpus, vocabulary, eof):
+    total = 0
+    file_index = 0
+    token = ''
+    # count occurences of all words
+    while file_index < eof:
+        buffer = corpus.read(512)
+        for buffer_index in range(len(buffer)):
+            if ((ord(buffer[buffer_index]) >= ord('\t') and
+                ord(buffer[buffer_index]) <= ord('\r')) or
+                    buffer[buffer_index] == ' '):
+                if len(token) > 0:
+                    count = vocabulary.get(token)
+                    if not count:
+                        count = 0
+                    vocabulary.update({token: count+1})
+
+                    total += 1
+                    token = ''
+            else:
+                # make all words same case
+                token += buffer[buffer_index].upper()
+        file_index += 512
+    return total
+
+
+def translate_corpus(corpus, vocabulary, eof):
+    processed_corpus = open('alskdjf_temp_01928374.txt', 'w')
+    file_index = 0
+    output_buffer = ''
+    token = ''
+    # count occurences of all words
+    while file_index < eof:
+        input_buffer = corpus.read(512)
+        for buffer_index in range(len(input_buffer)):
+            if ((ord(input_buffer[buffer_index]) >= ord('\t') and
+                ord(input_buffer[buffer_index]) <= ord('\r')) or
+                    input_buffer[buffer_index] == ' '):
+                if len(token) > 0:
+                    output_buffer += ' ' + vocabulary.get(token)
+
+                    token = ''
+            else:
+                # make all words same case
+                token += input_buffer[buffer_index].upper()
+        file_index += 512
+        processed_corpus.write(output_buffer)
+        output_buffer = ''
+    corpus.close()
+
+    processed_corpus.close()
+    return 'alskdjf_temp_01928374.txt'
 
 
 def count_n_grams(k, corpus):
@@ -29,7 +107,7 @@ def count_n_grams(k, corpus):
     corpus = open(corpus, 'r')
     file_index = 0
     # read (512 bytes) characters from the corpus
-    current_token = ''
+    token = ''
     while file_index < eof:
         buffer = corpus.read(512)
         for buffer_index in range(len(buffer)):
@@ -37,14 +115,14 @@ def count_n_grams(k, corpus):
             if ((ord(buffer[buffer_index]) >= ord('\t') and
                 ord(buffer[buffer_index]) <= ord('\r')) or
                     buffer[buffer_index] == ' '):
-                if len(current_token) > 0:  # shouldn't be nessesary, but..
-                    add_to_count(k, history, current_token, n_gram_counts)
-                    history.append(current_token)
+                if len(token) > 0:  # shouldn't be nessesary, but..
+                    add_to_count(k, history, token, n_gram_counts)
+                    history.append(token)
                     if len(history) >= k:
                         history.popleft()
-                    current_token = ''
+                    token = ''
             else:
-                current_token += buffer[buffer_index]
+                token += buffer[buffer_index]
         file_index += 512
     corpus.close()
     add_unencountered(k, n_gram_counts)
@@ -165,5 +243,8 @@ def rec_linear_interpolation(max_k_gram, depth, current_dict, lambda_array, prob
         rec_linear_interpolation(max_k_gram, depth+1, token_dict, lambda_array, new_history)
 
 
-probabilities = compute_probabilities(2, 'sentence.txt', smoothing='linear-interpolation', lambda_array=[0.2,0.8])
+start_time = perf_counter()
+probabilities = compute_probabilities(2, 'train.txt', smoothing='linear-interpolation', lambda_array=[0.2,0.8])
 print(probabilities)
+end_time = perf_counter()
+print(end_time - start_time)
