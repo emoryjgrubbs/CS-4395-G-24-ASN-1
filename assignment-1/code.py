@@ -15,8 +15,6 @@ def compute_probabilities(max_k_gram, corpus, smoothing='add-k', smoothing_k=1, 
     probabilities = convert_to_probability(max_k_gram, n_gram_counts)
     if smoothing.lower() == 'linear-interpolation' or smoothing.lower() == 'both':
         probabilities = linear_interpolation_smoothing(max_k_gram, probabilities, lambda_array)
-    if path.exists('alskdjf_temp_01928374.txt'):
-        remove('alskdjf_temp_01928374.txt')
     return probabilities
 
 
@@ -297,10 +295,32 @@ def compute_l(k_gram, training_probabilities, text):
 
 
 start_time = perf_counter()
-k_gram = 2
 corpus = preprocess('train.txt')
-probabilities = compute_probabilities(k_gram, corpus, smoothing='linear-interpolation', lambda_array=[0.2, 0.8])
+# test uni-grams
+k_gram = 1
+probabilities = compute_probabilities(k_gram, corpus)
 perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
-print(perplexity)
+print("UNI-GRAM PERPLEXITY:", perplexity)
+# test bi-grams
+k_gram = 2
+# add-k smoothing
+test_k_smoothings = [0.005, 0.01, 0.02, 0.03, 0.1, 1]
+for k_smoothing in test_k_smoothings:
+    probabilities = compute_probabilities(k_gram, corpus, smoothing='add-k',
+                                          smoothing_k=k_smoothing)
+    perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
+    print("BI-GRAM ( ADD-K:", k_smoothing, ") PERPLEXITY:", perplexity)
+# linear inperpolation
+test_lambda_arrays = [[0.3, 0.7], [0.4, 0.6], [0.5, 0.5],
+                      [0.6, 0.4], [0.7, 0.3]]
+for lambda_array in test_lambda_arrays:
+    probabilities = compute_probabilities(k_gram, corpus,
+                                          smoothing='linear-interpolation',
+                                          lambda_array=lambda_array)
+    perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
+    print("BI-GRAM ( LINEAR-INTERPOLATION:", lambda_array, ") PERPLEXITY:",
+          perplexity)
 end_time = perf_counter()
-print(end_time - start_time)
+if path.exists('alskdjf_temp_01928374.txt'):
+    remove('alskdjf_temp_01928374.txt')
+print("\nELAPSED TIME", end_time - start_time)
