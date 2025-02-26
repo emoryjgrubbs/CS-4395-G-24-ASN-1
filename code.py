@@ -1,6 +1,6 @@
-# NOTE remove timer
-from time import perf_counter
 import numpy as np
+from time import perf_counter
+from math import inf
 from collections import deque
 from os import path, remove
 
@@ -294,33 +294,115 @@ def compute_l(k_gram, training_probabilities, text):
     return sum/num_k_grams
 
 
-start_time = perf_counter()
-corpus = preprocess('train.txt')
-# test uni-grams
-k_gram = 1
-probabilities = compute_probabilities(k_gram, corpus)
-perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
-print("UNI-GRAM PERPLEXITY:", perplexity)
-# test bi-grams
-k_gram = 2
-# add-k smoothing
-test_k_smoothings = [0.005, 0.01, 0.02, 0.03, 0.1, 1]
-for k_smoothing in test_k_smoothings:
-    probabilities = compute_probabilities(k_gram, corpus, smoothing='add-k',
-                                          smoothing_k=k_smoothing)
+def test_uni_gram(corpus):
+    k_gram = 1
+    start_time = perf_counter()
+
+    probabilities = compute_probabilities(k_gram, corpus)
     perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
-    print("BI-GRAM ( ADD-K:", k_smoothing, ") PERPLEXITY:", perplexity)
-# linear inperpolation
-test_lambda_arrays = [[0.3, 0.7], [0.4, 0.6], [0.5, 0.5],
-                      [0.6, 0.4], [0.7, 0.3]]
-for lambda_array in test_lambda_arrays:
+
+    end_time = perf_counter()
+    return (perplexity, end_time - start_time)
+
+
+def test_add_k(corpus, smoothing_k):
+    k_gram = 2
+    start_time = perf_counter()
+
+    probabilities = compute_probabilities(k_gram, corpus, smoothing='add-k',
+                                          smoothing_k=smoothing_k)
+    perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
+
+    end_time = perf_counter()
+    return (perplexity, end_time - start_time)
+
+
+def test_linear_interpolation(corpus, lambda_array):
+    k_gram = 2
+    start_time = perf_counter()
+
     probabilities = compute_probabilities(k_gram, corpus,
                                           smoothing='linear-interpolation',
                                           lambda_array=lambda_array)
     perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
-    print("BI-GRAM ( LINEAR-INTERPOLATION:", lambda_array, ") PERPLEXITY:",
+
+    end_time = perf_counter()
+    return (perplexity, end_time - start_time)
+
+
+def evaluate():  # may take upwards of an hour
+    corpus = preprocess('train.txt')
+
+    # test uni-grams
+    sum_time = 0
+    for _ in range(100):
+        perplexity, time = test_uni_gram(corpus)
+        sum_time += time
+    print("UNI-GRAM PERPLEXITY:", perplexity)
+    print("AVG TIME:", (sum_time/100))
+    print("ELAPSED TIME:", sum_time)
+
+    # test bi-grams
+    # add-k smoothing
+    sum_time = 0
+    best_perplexity = inf
+    for smoothing_k in np.arange(0.005, ((100 * 0.0001) + 0.005), 0.0001):
+        perplexity, time = test_add_k(corpus, smoothing_k)
+        sum_time += time
+        if perplexity < best_perplexity:
+            best_perplexity = perplexity
+    print("\nBI-GRAM ( ADD-K:", smoothing_k, ") PERPLEXITY:", best_perplexity)
+    print("AVG TIME:", (sum_time/100))
+    print("ELAPSED TIME:", sum_time)
+
+    # linear inperpolation
+    sum_time = 0
+    best_lambda = []
+    best_perplexity = inf
+    for uni_lambda in np.arange(0.4, ((100 * 0.001) + 0.4), 0.001):
+        lambda_array = [uni_lambda, (1-uni_lambda)]
+        perplexity, time = test_linear_interpolation(corpus, lambda_array)
+        sum_time += time
+        if perplexity < best_perplexity:
+            best_perplexity = perplexity
+            best_lambda = lambda_array
+    print("\nBI-GRAM ( LINEAR-INTERPOLATION:", best_lambda, ") PERPLEXITY:",
+          best_perplexity)
+    print("AVG TIME:", (sum_time/100))
+    print("ELAPSED TIME:", sum_time)
+
+    # clean up temp corpus file
+    if path.exists('alskdjf_temp_01928374.txt'):
+        remove('alskdjf_temp_01928374.txt')
+
+
+def example():
+    corpus = preprocess('train.txt')
+
+    # test uni-grams
+    perplexity, time = test_uni_gram(corpus)
+    print("UNI-GRAM PERPLEXITY:", perplexity)
+    print("ELAPSED TIME:", (time))
+
+    # test bi-grams
+    # add-k smoothing
+    smoothing_k = 0.01
+    perplexity, time = test_add_k(corpus, smoothing_k)
+    print("\nBI-GRAM ( ADD-K:", smoothing_k, ") PERPLEXITY:", perplexity)
+    print("ELAPSED TIME:", (time))
+
+    # linear inperpolation
+    lambda_array = [0.445, 0.555]
+
+    perplexity, time = test_linear_interpolation(corpus, lambda_array)
+    print("\nBI-GRAM ( LINEAR-INTERPOLATION:", lambda_array, ") PERPLEXITY:",
           perplexity)
-end_time = perf_counter()
-if path.exists('alskdjf_temp_01928374.txt'):
-    remove('alskdjf_temp_01928374.txt')
-print("\nELAPSED TIME", end_time - start_time)
+    print("ELAPSED TIME:", (time))
+
+    # clean up temp corpus file
+    if path.exists('alskdjf_temp_01928374.txt'):
+        remove('alskdjf_temp_01928374.txt')
+
+
+example()
+# evaluate()
