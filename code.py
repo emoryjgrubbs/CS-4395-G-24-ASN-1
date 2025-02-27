@@ -8,7 +8,7 @@ from os import path, remove
 # compute n-gram probabilities
 # k = int > 0, corput = file path to corpus
 # return: [[n=1 probabilities list], [n=2], ..., [n=k]]
-def compute_probabilities(max_k_gram, corpus, smoothing='add-k', smoothing_k=1, lambda_array=None):
+def compute_probabilities(max_k_gram, corpus, smoothing='none', smoothing_k=1, lambda_array=None):
     n_gram_counts = count_n_grams(max_k_gram, corpus)
     if smoothing.lower() == 'add-k' or smoothing.lower() == 'both':
         n_gram_counts = add_k_smoothing(max_k_gram, n_gram_counts, smoothing_k)
@@ -330,6 +330,20 @@ def test_linear_interpolation(corpus, lambda_array):
     return (perplexity, end_time - start_time)
 
 
+def test_both(corpus, smoothing_k, lambda_array):
+    k_gram = 2
+    start_time = perf_counter()
+
+    probabilities = compute_probabilities(k_gram, corpus,
+                                          smoothing='both',
+                                          smoothing_k=smoothing_k,
+                                          lambda_array=lambda_array)
+    perplexity = compute_perplexity(k_gram, probabilities, 'val.txt')
+
+    end_time = perf_counter()
+    return (perplexity, end_time - start_time)
+
+
 def evaluate():  # may take upwards of an hour
     corpus = preprocess('train.txt')
 
@@ -342,32 +356,36 @@ def evaluate():  # may take upwards of an hour
     print("AVG TIME:", (sum_time/100))
     print("ELAPSED TIME:", sum_time)
 
-    # test bi-grams
     # add-k smoothing
     sum_time = 0
-    best_perplexity = inf
-    for smoothing_k in np.arange(0.005, ((100 * 0.0001) + 0.005), 0.0001):
+    smoothing_k = 0.015
+    for _ in range(100):
         perplexity, time = test_add_k(corpus, smoothing_k)
         sum_time += time
-        if perplexity < best_perplexity:
-            best_perplexity = perplexity
-    print("\nBI-GRAM ( ADD-K:", smoothing_k, ") PERPLEXITY:", best_perplexity)
+    print("\nBI-GRAM ( ADD-K:", smoothing_k, ") PERPLEXITY:", perplexity)
     print("AVG TIME:", (sum_time/100))
     print("ELAPSED TIME:", sum_time)
 
     # linear inperpolation
     sum_time = 0
-    best_lambda = []
-    best_perplexity = inf
-    for uni_lambda in np.arange(0.4, ((100 * 0.001) + 0.4), 0.001):
-        lambda_array = [uni_lambda, (1-uni_lambda)]
+    lambda_array = [0.445, 0.555]
+    for _ in range(100):
         perplexity, time = test_linear_interpolation(corpus, lambda_array)
         sum_time += time
-        if perplexity < best_perplexity:
-            best_perplexity = perplexity
-            best_lambda = lambda_array
-    print("\nBI-GRAM ( LINEAR-INTERPOLATION:", best_lambda, ") PERPLEXITY:",
-          best_perplexity)
+    print("\nBI-GRAM ( LINEAR-INTERPOLATION:", lambda_array, ") PERPLEXITY:",
+          perplexity)
+    print("AVG TIME:", (sum_time/100))
+    print("ELAPSED TIME:", sum_time)
+
+    # add-k & linear
+    sum_time = 0
+    smoothing_k = 0.002
+    lambda_array = [0.37, 0.63]
+    for _ in range(100):
+        perplexity, time = test_both(corpus, smoothing_k, lambda_array)
+        sum_time += time
+    print("\nBI-GRAM ( BOTH:", smoothing_k, lambda_array, " ) PERPLEXITY:",
+          perplexity)
     print("AVG TIME:", (sum_time/100))
     print("ELAPSED TIME:", sum_time)
 
@@ -386,16 +404,23 @@ def example():
 
     # test bi-grams
     # add-k smoothing
-    smoothing_k = 0.01
+    smoothing_k = 0.015
     perplexity, time = test_add_k(corpus, smoothing_k)
     print("\nBI-GRAM ( ADD-K:", smoothing_k, ") PERPLEXITY:", perplexity)
     print("ELAPSED TIME:", (time))
 
     # linear inperpolation
     lambda_array = [0.445, 0.555]
-
     perplexity, time = test_linear_interpolation(corpus, lambda_array)
     print("\nBI-GRAM ( LINEAR-INTERPOLATION:", lambda_array, ") PERPLEXITY:",
+          perplexity)
+    print("ELAPSED TIME:", (time))
+
+    # add-k & linear
+    smoothing_k = 0.002
+    lambda_array = [0.37, 0.63]
+    perplexity, time = test_both(corpus, smoothing_k, lambda_array)
+    print("\nBI-GRAM ( BOTH:", smoothing_k, lambda_array, ") PERPLEXITY:",
           perplexity)
     print("ELAPSED TIME:", (time))
 
